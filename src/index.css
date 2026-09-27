@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@theme {
+  --color-primary: #f27a00;
+  --color-secondary: #1c2333;
+  --color-theme: #f7f6f2;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.mapboxgl-map {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.mapboxgl-canvas {
+  max-width: 100% !important;
+}
