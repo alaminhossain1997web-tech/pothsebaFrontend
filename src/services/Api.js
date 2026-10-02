@@ -36,6 +36,15 @@ export const Api = createApi({
     }),
 
     // ==========================================
+    // Logout
+    // ==========================================
+    logout: build.mutation({
+      query: () => ({
+        url: "/api/v1/auth/logout",
+        method: "POST",
+      }),
+    }),
+    // ==========================================
     // Technician Profile
     // ==========================================
     tecnicianProile: build.mutation({
@@ -51,26 +60,33 @@ export const Api = createApi({
     // ==========================================
     services: build.query({
       query: () => ({
-        url: "/api/v1/admin/services/getallService",
+        url: "/api/v1/allservice/getallService",
         method: "GET",
       }),
     }),
 
     // ==========================================
-    // Logout
+    // Find all technician
     // ==========================================
-    logout: build.mutation({
-      query: () => ({
-        url: "/api/v1/auth/logout",
-        method: "POST",
+    // ==========================================
+    // Find Nearby Technicians
+    // ==========================================
+    findTechnician: build.query({
+      query: ({ longitude, latitude }) => ({
+        url: "/api/v1/request/findTechnician",
+        method: "GET",
+        params: {
+          longitude,
+          latitude,
+        },
       }),
     }),
+
+    // ==========================================
+    //
+    // ==========================================
   }),
 });
-
-// ==========================================
-// Hooks
-// ==========================================
 
 export const {
   useRegistrationMutation,
@@ -78,4 +94,5 @@ export const {
   useServicesQuery,
   useTecnicianProileMutation,
   useLogoutMutation,
+  useLazyFindTechnicianQuery
 } = Api;

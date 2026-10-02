@@ -4,9 +4,12 @@ import InputField from "../components/ui/input/InputField";
 import { Link, useNavigate } from "react-router";
 import { useLoginMutation } from "../services/Api";
 import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { setUser } from "../features/user/userSlice";
 
 const Login = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -52,6 +55,7 @@ const Login = () => {
       // =========================
 
       const role = response.data.user.role;
+      dispatch(setUser(response.data.user));
 
       const hasProfile =
         response.data.technicianProfile;
