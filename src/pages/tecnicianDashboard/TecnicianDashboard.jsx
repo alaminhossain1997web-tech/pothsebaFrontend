@@ -1,6 +1,6 @@
 import React from "react";
 import TechnicianStatusCard from "../../components/ui/card/TechnicianStatusCard";
-import ActivityCard from "../../components/ui/card/activityCard";
+import ActivityCard from "../../components/ui/card/ActivityCard.jsx";
 import RequestPendingCard from "../../components/ui/card/RequestPendingCard";
 import { FiBattery, FiSettings, FiTruck } from "react-icons/fi";
 import { RiFileSettingsFill } from "react-icons/ri";
