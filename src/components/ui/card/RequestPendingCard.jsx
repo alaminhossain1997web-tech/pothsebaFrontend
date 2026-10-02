@@ -49,14 +49,14 @@ const RequestPendingCard = ({
       <div className=" flex gap-10">
         <button
         type="button"
-        className="mt-5 w-full rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#ea580c] cursor-pointer"
+        className="mt-5 w-full rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-600 cursor-pointer"
       >
         Reject
       </button>
 
        <button
         type="button"
-        className="mt-5 w-full rounded-xl bg-green-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#ea580c] cursor-pointer"
+        className="mt-5 w-full rounded-xl bg-green-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-600 cursor-pointer"
       >
         Accept
       </button>

@@ -59,7 +59,7 @@ const Footer = () => {
             </h3>
 
             <p className="mt-4 text-sm text-gray-300">
-              Stay connected with PothSeba.
+              Stay connect with PothSeba.
             </p>
 
             <div className="mt-5 flex gap-3">

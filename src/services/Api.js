@@ -4,7 +4,7 @@ export const Api = createApi({
   reducerPath: "api",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000",
+    baseUrl: "https://pothdeba-backend.onrender.com",
 
     // ==========================================
     // Send Cookies With Every Request

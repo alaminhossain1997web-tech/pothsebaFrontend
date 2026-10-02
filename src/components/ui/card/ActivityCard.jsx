@@ -1,6 +1,7 @@
 import { FiTool, FiClock, FiMapPin } from "react-icons/fi";
 
 const ActivityCard = ({
+  icon: Icon = FiTool,
   jobTitle = "Car Repair",
   customerName = "Rahim Ahmed",
   location = "Mirpur, Dhaka",
@@ -8,13 +9,13 @@ const ActivityCard = ({
 }) => {
   return (
     <div className="w-full rounded-2xl border border-[#FFE3D1] bg-[#FFF8F2] p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md sm:p-6">
-      
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        
+
         {/* Icon */}
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FFE6D5] text-[#F97316]">
-          <FiTool className="h-5 w-5" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FFE6D5] text-shadow-black">
+          <Icon className="h-5 w-5" />
         </div>
 
         {/* Status */}
@@ -53,7 +54,7 @@ const ActivityCard = ({
       {/* Action Button */}
       <button
         type="button"
-        className="mt-5 w-full rounded-xl bg-[#F97316] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#ea580c] cursor-pointer"
+        className="mt-5 w-full cursor-pointer rounded-xl bg-[#F97316] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#ea580c]"
       >
         View Job
       </button>
