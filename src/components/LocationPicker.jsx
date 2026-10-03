@@ -76,13 +76,22 @@ const LocationPicker = ({ onLocationSelect }) => {
           );
 
           // ========================================
-          // GET ADDRESS
+          // GET ADDRESS (Fixed & Safe Extraction)
           // ========================================
 
+          const feature = data.features?.[0];
+          const properties = feature?.properties;
+
           const placeName =
-            data.features?.[0]?.properties?.full_address ||
-            data.features?.[0]?.properties?.name ||
-            "Address not found";
+            properties?.full_address ||
+            properties?.place_formatted ||
+            properties?.name ||
+            feature?.text ||
+            "";
+
+          if (!placeName) {
+            throw new Error("Address properties not found in response.");
+          }
 
           setAddress(placeName);
 
@@ -103,9 +112,6 @@ const LocationPicker = ({ onLocationSelect }) => {
             "❌ Reverse Geocoding Error:",
             error
           );
-
-          // Coordinates পাওয়া গেছে,
-          // কিন্তু address পাওয়া যায়নি
 
           if (onLocationSelect) {
             onLocationSelect({
