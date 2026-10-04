@@ -6,6 +6,18 @@ export const Api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: "https://pothdeba-backend.onrender.com",
 
+    // Login stores the access token in localStorage. Send it with protected
+    // endpoints such as findTechnician.
+    prepareHeaders: (headers) => {
+      const accessToken = localStorage.getItem("accessToken");
+
+      if (accessToken) {
+        headers.set("authorization", `Bearer ${accessToken}`);
+      }
+
+      return headers;
+    },
+
     // ==========================================
     // Send Cookies With Every Request
     // ==========================================

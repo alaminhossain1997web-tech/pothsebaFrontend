@@ -504,7 +504,11 @@ const FindTechnician = () => {
 
       console.log("Map fitted to technicians.");
     } catch (requestError) {
-      console.error("Find technician API error:", requestError);
+      console.error("Find technician API error:", {
+        status: requestError?.status,
+        data: requestError?.data,
+        message: requestError?.error,
+      });
 
       setTechnicians([]);
 
@@ -512,6 +516,9 @@ const FindTechnician = () => {
 
       setError(
         requestError?.data?.message ||
+          (requestError?.status === 401
+            ? "Your session has expired. Please log in again."
+            : null) ||
           requestError?.error ||
           "Failed to find technicians.",
       );
