@@ -897,17 +897,6 @@ const FindTechnician = () => {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-theme">
       <div className="mx-auto w-full max-w-7xl px-3 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8">
-        {/* PAGE HEADER */}
-
-        <div className="mb-5 sm:mb-6">
-          <h1 className="text-xl font-bold text-[#1C2333] sm:text-2xl md:text-3xl">
-            Find Technician
-          </h1>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Find nearby technicians and request roadside assistance.
-          </p>
-        </div>
 
         {/* MAIN CARD */}
 
