@@ -66,6 +66,16 @@ export const Api = createApi({
         body: data,
       }),
     }),
+    // ==========================================
+    // technician status
+    // ==========================================
+    updateTechnicianStatus: build.mutation({
+      query: (isOnline) => ({
+        url: "/api/v1/technician/status",
+        method: "PATCH",
+        body: { isOnline },
+      }),
+    }),
 
     // ==========================================
     // Get All Services
@@ -95,6 +105,26 @@ export const Api = createApi({
     }),
 
     // ==========================================
+    //  Send a requet to tecnichian
+    // ==========================================
+
+    createRequest: build.mutation({
+      query: (requestData) => ({
+        url: "/api/v1/request/createRequest",
+        method: "POST",
+        body: requestData,
+      }),
+    }),
+    // ==========================================
+    //  get request from driver
+    // ==========================================
+    getTechnicianRequests: build.query({
+      query: () => ({
+        url: "/api/v1/request/getrequest",
+        method: "GET",
+      }),
+    }),
+    // ==========================================
     //
     // ==========================================
   }),
@@ -105,6 +135,9 @@ export const {
   useLoginMutation,
   useServicesQuery,
   useTecnicianProileMutation,
+  useUpdateTechnicianStatusMutation,
   useLogoutMutation,
-  useLazyFindTechnicianQuery
+  useLazyFindTechnicianQuery,
+  useCreateRequestMutation,
+  useGetTechnicianRequestsQuery,
 } = Api;

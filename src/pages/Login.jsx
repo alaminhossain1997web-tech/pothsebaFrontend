@@ -37,9 +37,14 @@ const Login = () => {
     e.preventDefault();
 
     try {
-      const response = await login(formData).unwrap();
+      const response = await login({
+        ...formData,
+        email: formData.email.trim().toLowerCase(),
+      }).unwrap();
 
-      console.log("Login response:", response);
+      if (response?.success === false || !response?.data?.accessToken || !response?.data?.user) {
+        throw new Error(response?.message || "Login response was incomplete.");
+      }
 
       // =========================
       // Save Access Token
@@ -84,10 +89,8 @@ const Login = () => {
       }
 
     } catch (error) {
-      console.log("Login error:", error);
-
       toast.error(
-        error?.data?.message ||
+        error?.data?.message || error?.message ||
           "Something went wrong!"
       );
     }

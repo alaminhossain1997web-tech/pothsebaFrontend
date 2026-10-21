@@ -30,7 +30,14 @@ const Registration = () => {
     e.preventDefault();
 
     try {
-      await registration(formData).unwrap();
+      const response = await registration({
+        ...formData,
+        email: formData.email.trim().toLowerCase(),
+      }).unwrap();
+
+      if (response?.success === false) {
+        throw new Error(response.message || "Registration failed.");
+      }
 
       toast.success("Account created successfully! 🎉");
        {/* navigate  login page */}
@@ -38,7 +45,7 @@ const Registration = () => {
         navigate("/login");
       }, 2000);
     } catch (error) {
-      toast.error(error?.data?.message || "Something went wrong!");
+      toast.error(error?.data?.message || error?.message || "Something went wrong!");
     }
   };
 
