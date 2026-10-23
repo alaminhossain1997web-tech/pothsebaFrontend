@@ -1,12 +1,11 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useGetTechnicianRequestsQuery } from "../../services/Api";
 import TechnicianStatusCard from "../../components/ui/card/TechnicianStatusCard";
 import RequestPendingCard from "../../components/ui/card/RequestPendingCard";
 import { connectSharedSocket, getSharedSocket } from "../../services/socket";
 
-// Extract requests from the API response safely.
 const getRequestList = (response) => {
   const candidates = [
     response?.data?.requests,
@@ -17,7 +16,12 @@ const getRequestList = (response) => {
   return candidates.find(Array.isArray) || [];
 };
 
+const getRequestId = (request) =>
+  String(request?._id || request?.requestId || request?.id || "");
+
 const TecnicianDashboard = () => {
+  const [liveRequests, setLiveRequests] = useState([]);
+
   const {
     data,
     error,
@@ -28,31 +32,89 @@ const TecnicianDashboard = () => {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
-    pollingInterval: 5000,
   });
 
-  const requests = getRequestList(data);
+  const serverRequests = getRequestList(data);
+
+  // Merge API requests with requests received directly over Socket.IO.
+  // Live requests are retained even if the current API response is empty.
+  const requestMap = new Map();
+
+  serverRequests.forEach((request) => {
+    const id = getRequestId(request);
+
+    if (id) {
+      requestMap.set(id, request);
+    }
+  });
+
+  liveRequests.forEach((request) => {
+    const id = getRequestId(request);
+
+    if (id) {
+      requestMap.set(id, {
+        ...requestMap.get(id),
+        ...request,
+      });
+    }
+  });
+
+  const requests = Array.from(requestMap.values()).sort(
+    (a, b) =>
+      new Date(b.createdAt || 0).getTime() -
+      new Date(a.createdAt || 0).getTime()
+  );
 
   useEffect(() => {
     const socket = getSharedSocket();
 
-    const handleNewRequest = () => {
-      console.info("New request event received.");
-      refetch();
+    const handleNewRequest = (newRequest) => {
+      if (!newRequest) {
+        console.warn("Received an empty request:new event.");
+        return;
+      }
+
+      const newId = getRequestId(newRequest);
+
+      if (!newId) {
+        console.warn("request:new event is missing a request ID.");
+        return;
+      }
+
+      console.info("Real-time service request received:", newId);
+
+      setLiveRequests((currentRequests) => {
+        const alreadyExists = currentRequests.some(
+          (request) => getRequestId(request) === newId
+        );
+
+        if (alreadyExists) {
+          return currentRequests.map((request) =>
+            getRequestId(request) === newId
+              ? { ...request, ...newRequest }
+              : request
+          );
+        }
+
+        return [newRequest, ...currentRequests];
+      });
     };
 
     const handleRequestUpdated = () => {
-      console.info("Request updated event received.");
+      // Refresh when an existing request changes status.
       refetch();
     };
 
     const handleConnect = () => {
-      console.info("Socket.IO connected.");
+      console.info("Technician dashboard Socket.IO connected.");
       refetch();
     };
 
     const handleConnectError = (socketError) => {
-      console.error("Socket.IO connection failed:", socketError.message);
+      console.error(
+        "Socket.IO connection failed:",
+        socketError.message
+      );
     };
 
     const handleDisconnect = (reason) => {
@@ -89,8 +151,7 @@ const TecnicianDashboard = () => {
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                New requests refresh automatically. You can also refresh
-                manually.
+                New requests appear automatically when received.
               </p>
             </div>
 
@@ -108,7 +169,7 @@ const TecnicianDashboard = () => {
             <div className="rounded-xl bg-white p-6 text-gray-600">
               Loading service requests...
             </div>
-          ) : error ? (
+          ) : error && requests.length === 0 ? (
             <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
               <p>
                 {error?.data?.message ||
@@ -131,21 +192,14 @@ const TecnicianDashboard = () => {
               </h3>
 
               <p className="mt-2 text-sm text-gray-500">
-                No service requests are available right now. New requests will
-                appear here when the API returns them.
+                New service requests will appear here automatically.
               </p>
-
-              {isFetching && (
-                <p className="mt-3 text-xs text-gray-400">
-                  Checking for new requests...
-                </p>
-              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {requests.map((request, index) => (
+              {requests.map((request) => (
                 <RequestPendingCard
-                  key={request?._id || request?.id || index}
+                  key={getRequestId(request)}
                   request={request}
                 />
               ))}
