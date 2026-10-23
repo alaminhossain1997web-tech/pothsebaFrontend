@@ -1,10 +1,13 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+export const API_BASE_URL = "https://pothdeba-backend.onrender.com";
+
 export const Api = createApi({
   reducerPath: "api",
+  tagTypes: ["TechnicianRequests"],
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://pothdeba-backend.onrender.com",
+    baseUrl: API_BASE_URL,
 
     // Login stores the access token in localStorage. Send it with protected
     // endpoints such as findTechnician.
@@ -123,6 +126,16 @@ export const Api = createApi({
         url: "/api/v1/request/getrequest",
         method: "GET",
       }),
+      providesTags: ["TechnicianRequests"],
+    }),
+    updateRequestStatus: build.mutation({
+      query: ({ requestId, status }) => ({
+        url: `/api/v1/request/${encodeURIComponent(requestId)}/status`,
+        method: "PATCH",
+        body: { status },
+      }),
+      invalidatesTags: (result, error) =>
+        !error && result?.success !== false ? ["TechnicianRequests"] : [],
     }),
     // ==========================================
     //
@@ -140,4 +153,5 @@ export const {
   useLazyFindTechnicianQuery,
   useCreateRequestMutation,
   useGetTechnicianRequestsQuery,
+  useUpdateRequestStatusMutation,
 } = Api;
