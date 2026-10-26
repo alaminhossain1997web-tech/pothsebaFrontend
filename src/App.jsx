@@ -9,12 +9,14 @@ import FuelPumpService from "./pages/FuelPumpService";
 import TakeRide from "./pages/TakeRide";
 import FindTechnician from "./pages/FindTechnician";
 import TecnicianDashboard from "./pages/tecnicianDashboard/TecnicianDashboard";
+import RiderRequests from "./pages/RiderRequests";
 
 const App = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route path="/home" element={<Home />} />
+        <Route path="/my-requests" element={<RiderRequests />} />
         <Route path="/traffic"element={<TrafficService />}/>
         <Route path="/fuelpump"element={<FuelPumpService />}/>
         <Route path="/ride"element={<TakeRide />}/>

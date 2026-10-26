@@ -4,7 +4,7 @@ export const API_BASE_URL = "https://pothdeba-backend.onrender.com";
 
 export const Api = createApi({
   reducerPath: "api",
-  tagTypes: ["TechnicianRequests"],
+  tagTypes: ["TechnicianRequests", "RiderRequests"],
 
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
@@ -117,6 +117,8 @@ export const Api = createApi({
         method: "POST",
         body: requestData,
       }),
+      invalidatesTags: (result, error) =>
+        !error && result?.success !== false ? ["RiderRequests"] : [],
     }),
     // ==========================================
     //  get request from driver
@@ -128,6 +130,16 @@ export const Api = createApi({
       }),
       providesTags: ["TechnicianRequests"],
     }),
+
+    getRiderRequests: build.query({
+      query: () => ({
+        url: "/api/v1/request/my-requests",
+        method: "GET",
+      }),
+      providesTags: ["RiderRequests"],
+    }),
+
+
     updateRequestStatus: build.mutation({
       query: ({ requestId, status }) => ({
         url: `/api/v1/request/${encodeURIComponent(requestId)}/status`,
@@ -135,7 +147,9 @@ export const Api = createApi({
         body: { status },
       }),
       invalidatesTags: (result, error) =>
-        !error && result?.success !== false ? ["TechnicianRequests"] : [],
+        !error && result?.success !== false
+          ? ["TechnicianRequests", "RiderRequests"]
+          : [],
     }),
     // ==========================================
     //
@@ -153,5 +167,6 @@ export const {
   useLazyFindTechnicianQuery,
   useCreateRequestMutation,
   useGetTechnicianRequestsQuery,
+  useGetRiderRequestsQuery,
   useUpdateRequestStatusMutation,
 } = Api;

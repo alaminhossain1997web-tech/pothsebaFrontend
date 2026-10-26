@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { useGetTechnicianRequestsQuery } from "../../services/Api";
 import TechnicianStatusCard from "../../components/ui/card/TechnicianStatusCard";
@@ -20,8 +20,6 @@ const getRequestId = (request) =>
   String(request?._id || request?.requestId || request?.id || "");
 
 const TecnicianDashboard = () => {
-  const [liveRequests, setLiveRequests] = useState([]);
-
   const {
     data,
     error,
@@ -29,6 +27,7 @@ const TecnicianDashboard = () => {
     isFetching,
     refetch,
   } = useGetTechnicianRequestsQuery(undefined, {
+    pollingInterval: 30000,
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
@@ -36,105 +35,32 @@ const TecnicianDashboard = () => {
 
   const serverRequests = getRequestList(data);
 
-  // Merge API requests with requests received directly over Socket.IO.
-  // Live requests are retained even if the current API response is empty.
-  const requestMap = new Map();
-
-  serverRequests.forEach((request) => {
-    const id = getRequestId(request);
-
-    if (id) {
-      requestMap.set(id, request);
-    }
-  });
-
-  liveRequests.forEach((request) => {
-    const id = getRequestId(request);
-
-    if (id) {
-      requestMap.set(id, {
-        ...requestMap.get(id),
-        ...request,
-      });
-    }
-  });
-
-  const requests = Array.from(requestMap.values()).sort(
+  const requests = [...serverRequests].sort(
     (a, b) =>
       new Date(b.createdAt || 0).getTime() -
       new Date(a.createdAt || 0).getTime()
   );
+  const groups = [
+    { title: "New Requests", statuses: ["pending"] },
+    { title: "Active Requests", statuses: ["accepted", "on_the_way", "in_progress"] },
+    { title: "Request History", statuses: ["rejected", "completed", "cancelled"] },
+  ];
 
   useEffect(() => {
     const socket = getSharedSocket();
 
-    const handleNewRequest = (newRequest) => {
-      if (!newRequest) {
-        console.warn("Received an empty request:new event.");
-        return;
-      }
+    const refresh = () => refetch();
 
-      const newId = getRequestId(newRequest);
-
-      if (!newId) {
-        console.warn("request:new event is missing a request ID.");
-        return;
-      }
-
-      console.info("Real-time service request received:", newId);
-
-      setLiveRequests((currentRequests) => {
-        const alreadyExists = currentRequests.some(
-          (request) => getRequestId(request) === newId
-        );
-
-        if (alreadyExists) {
-          return currentRequests.map((request) =>
-            getRequestId(request) === newId
-              ? { ...request, ...newRequest }
-              : request
-          );
-        }
-
-        return [newRequest, ...currentRequests];
-      });
-    };
-
-    const handleRequestUpdated = () => {
-      // Refresh when an existing request changes status.
-      refetch();
-    };
-
-    const handleConnect = () => {
-      console.info("Technician dashboard Socket.IO connected.");
-      refetch();
-    };
-
-    const handleConnectError = (socketError) => {
-      console.error(
-        "Socket.IO connection failed:",
-        socketError.message
-      );
-    };
-
-    const handleDisconnect = (reason) => {
-      console.warn("Socket.IO disconnected:", reason);
-    };
-
-    socket.on("request:new", handleNewRequest);
-    socket.on("request:updated", handleRequestUpdated);
-    socket.on("connect", handleConnect);
-    socket.on("connect_error", handleConnectError);
-    socket.on("disconnect", handleDisconnect);
+    socket.on("request:new", refresh);
+    socket.on("request:updated", refresh);
+    socket.on("connect", refresh);
 
     connectSharedSocket(socket);
 
     return () => {
-      socket.off("request:new", handleNewRequest);
-      socket.off("request:updated", handleRequestUpdated);
-      socket.off("connect", handleConnect);
-      socket.off("connect_error", handleConnectError);
-      socket.off("disconnect", handleDisconnect);
+      socket.off("request:new", refresh);
+      socket.off("request:updated", refresh);
+      socket.off("connect", refresh);
     };
   }, [refetch]);
 
@@ -143,11 +69,11 @@ const TecnicianDashboard = () => {
       <div className="mx-auto w-full max-w-7xl">
         <TechnicianStatusCard />
 
-        <section className="mt-6">
+      <section className="mt-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-[#1C2333]">
-                New Service Requests
+                Assigned Service Requests
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
@@ -196,13 +122,25 @@ const TecnicianDashboard = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {requests.map((request) => (
-                <RequestPendingCard
-                  key={getRequestId(request)}
-                  request={request}
-                />
-              ))}
+            <div className="space-y-8">
+              {groups.map(({ title, statuses }) => {
+                const groupedRequests = requests.filter((request) => statuses.includes(String(request?.status || "pending").toLowerCase()));
+                return (
+                  <section key={title} aria-label={title}>
+                    <div className="mb-3 flex items-center gap-3">
+                      <h3 className="font-semibold text-[#1C2333]">{title}</h3>
+                      <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-[#c75d00]">{groupedRequests.length}</span>
+                    </div>
+                    {groupedRequests.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-500">No {title.toLowerCase()}.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        {groupedRequests.map((request) => <RequestPendingCard key={getRequestId(request)} request={request} />)}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           )}
         </section>

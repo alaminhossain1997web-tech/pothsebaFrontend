@@ -4,77 +4,66 @@ import { SlLocationPin } from "react-icons/sl";
 import toast from "react-hot-toast";
 import { useUpdateRequestStatusMutation } from "../../../services/Api";
 
+const actions = {
+  pending: [ ["accepted", "Accept"], ["rejected", "Reject"] ],
+  accepted: [["on_the_way", "Start Travel"]],
+  on_the_way: [["in_progress", "Start Work"]],
+  in_progress: [["completed", "Complete Work"]],
+};
+
+const labels = {
+  pending: "Pending", accepted: "Accepted", rejected: "Rejected",
+  on_the_way: "On the way", in_progress: "In progress",
+  completed: "Completed", cancelled: "Cancelled",
+};
+
+const errorMessage = (error) => {
+  const messages = {
+    401: "Your session expired. Please sign in again.",
+    403: "You are not allowed to update this request.",
+    404: "This request could not be found.",
+    409: "The request changed or this transition is no longer allowed. Refresh and try again.",
+  };
+  return error?.data?.message || error?.data?.error || messages[error?.status] || error?.error || "Could not update the request. Please try again.";
+};
+
 const RequestPendingCard = ({ request }) => {
   const customer = request?.rider || request?.user || request?.customer || {};
   const service = request?.service || {};
   const location = request?.location || {};
   const coordinates = location?.coordinates;
-  const locationText =
-    location?.address ||
-    request?.address ||
+  const locationText = location?.address || request?.address ||
     (Array.isArray(coordinates) ? `${coordinates[1]}, ${coordinates[0]}` : "Location not provided");
-  const [statusOverride, setStatusOverride] = useState(null);
+  const [updateRequestStatus, { isLoading }] = useUpdateRequestStatusMutation();
   const [pendingAction, setPendingAction] = useState(null);
   const submittingRef = useRef(false);
-  const [updateRequestStatus, { isLoading }] = useUpdateRequestStatusMutation();
-  const serverStatus = request?.status;
-  const localOverride = statusOverride?.requestId === request?._id
-    ? statusOverride.status
-    : null;
-  const status =
-    serverStatus && serverStatus.toLowerCase() !== "pending"
-      ? serverStatus
-      : localOverride || serverStatus || "pending";
+  const status = String(request?.status || "pending").toLowerCase();
 
   const handleStatusChange = async (nextStatus) => {
     if (submittingRef.current) return;
-
-    if (!request?._id) {
+    if (!request?._id && !request?.id && !request?.requestId) {
       toast.error("This request is missing its request ID.");
       return;
     }
-
     submittingRef.current = true;
     setPendingAction(nextStatus);
     try {
       const response = await updateRequestStatus({
-        requestId: request._id,
+        requestId: request._id || request.id || request.requestId,
         status: nextStatus,
       }).unwrap();
-
-      if (response?.success === false) {
-        throw new Error(response?.message || `Could not ${nextStatus} request.`);
-      }
-
-      const confirmedStatus =
-        response?.data?.status || response?.status || nextStatus;
-      setStatusOverride({ requestId: request._id, status: confirmedStatus });
-      toast.success(confirmedStatus === "accepted" ? "Request accepted." : "Request rejected.");
+      if (response?.success === false) throw new Error(response?.message || "Request update failed.");
+      toast.success(`Request ${labels[nextStatus].toLowerCase()}.`);
     } catch (error) {
-      const backendMessage =
-        error?.data?.message ||
-        error?.data?.error ||
-        (typeof error?.data === "string" ? error.data : null) ||
-        error?.error ||
-        error?.message;
-      const fallbackMessage = {
-        400: "The request status was invalid. Please try again.",
-        401: "Your session expired. Please sign in again.",
-        403: "You are not allowed to update this request.",
-        404: "The request or status route was not found. Check the backend deployment.",
-        500: "The server could not update this request. Please try again later.",
-      }[error?.status];
-      toast.error(
-        backendMessage || fallbackMessage ||
-          `Could not ${nextStatus === "accepted" ? "accept" : "reject"} the request.`,
-      );
+      toast.error(error?.message && !error?.status ? error.message : errorMessage(error));
     } finally {
       submittingRef.current = false;
       setPendingAction(null);
     }
   };
 
-  const isPending = status?.toLowerCase() === "pending";
+  const availableActions = actions[status] || [];
+  const createdAt = request?.createdAt ? new Date(request.createdAt).toLocaleString() : "Time unavailable";
 
   return (
     <article className="w-full rounded-2xl border border-orange-200 bg-white p-4 shadow-sm sm:p-5">
@@ -86,37 +75,25 @@ const RequestPendingCard = ({ request }) => {
           <h3 className="break-words text-base font-bold text-[#1C2333] sm:text-lg">
             {service?.name || service?.serviceName || request?.serviceName || "Service request"}
           </h3>
-          <p className="mt-1 text-sm font-medium text-gray-600">
-            {request?.description || "No problem description provided."}
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Rider: {customer?.name || customer?.fullName || customer?.email || "Rider"}
-          </p>
+          <p className="mt-1 text-sm text-gray-600">{request?.description || "No problem description provided."}</p>
+          <p className="mt-2 text-sm text-gray-500">Rider: {customer?.name || customer?.fullName || customer?.email || "Rider"}</p>
+          {(customer?.phone || customer?.phoneNumber) && <p className="mt-1 text-sm text-gray-500">Phone: {customer.phone || customer.phoneNumber}</p>}
           <div className="mt-2 flex items-start gap-1.5 text-sm text-gray-500">
             <SlLocationPin className="mt-0.5 shrink-0 text-lg text-[#F97316]" />
             <span className="break-words">{locationText}</span>
           </div>
-          <p className="mt-2 text-xs text-gray-500">Status: {status}</p>
+          <p className="mt-2 text-xs text-gray-500">Created: {createdAt}</p>
+          <p className="mt-2 text-sm font-semibold text-[#1C2333]">Status: {labels[status] || status}</p>
         </div>
       </div>
-      {isPending && (
-        <div className="mt-5 flex gap-3">
-          <button
-            type="button"
-            onClick={() => handleStatusChange("rejected")}
-            disabled={isLoading || !request?._id}
-            className="w-full cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading && pendingAction === "rejected" ? "Rejecting…" : "Reject"}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleStatusChange("accepted")}
-            disabled={isLoading || !request?._id}
-            className="w-full cursor-pointer rounded-xl bg-green-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading && pendingAction === "accepted" ? "Accepting…" : "Accept"}
-          </button>
+      {availableActions.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-3">
+          {availableActions.map(([nextStatus, label]) => {
+            const destructive = nextStatus === "rejected";
+            return <button key={nextStatus} type="button" aria-label={`${label} request`} onClick={() => handleStatusChange(nextStatus)} disabled={isLoading || !request?._id && !request?.id && !request?.requestId} className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${destructive ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"}`}>
+              {isLoading && pendingAction === nextStatus ? `${label}...` : label}
+            </button>;
+          })}
         </div>
       )}
     </article>

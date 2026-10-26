@@ -17,7 +17,8 @@ const Navbar = () => {
           
 
         {/* User Icon */}
-       <div className="flex gap-2.5">
+       <div className="flex items-center gap-2.5">
+        {user && user.role !== "Technician" && <Link to="/my-requests" className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-[#1C2333] hover:border-[#ff7f11] hover:text-[#ff7f11]">My requests</Link>}
         <div className="flex  h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-[#1C2333] transition hover:border-[#ff7f11] hover:bg-orange-50 hover:text-[#ff7f11] cursor-pointer">
           <IoMdNotificationsOutline className="text-xl" />
         </div>

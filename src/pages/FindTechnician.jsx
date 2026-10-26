@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router";
 
 import LocationPicker from "../components/LocationPicker";
 import PrimaryButton from "../components/ui/button/PrimaryButton";
@@ -62,6 +63,8 @@ const getServicesText = (technician) => {
 };
 
 export default function FindTechnician() {
+  const navigate = useNavigate();
+  const submittingRef = useRef(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const userMarkerRef = useRef(null);
@@ -256,14 +259,14 @@ export default function FindTechnician() {
         );
       }
     } catch (error) {
-      console.error("Find technician failed:", {
-        status: error?.status,
-        data: error?.data,
-        message: error?.error,
-      });
-
+      const messages = {
+        401: "Please sign in again to find a technician.",
+        403: "You are not allowed to find technicians with this account.",
+        404: "The technician search service is unavailable.",
+      };
       toast.error(
         error?.data?.message ||
+          messages[error?.status] ||
           error?.error ||
           "Failed to find technicians."
       );
@@ -272,6 +275,7 @@ export default function FindTechnician() {
 
   // Create a technician service request
   const handleRequestTechnician = useCallback(async () => {
+    if (submittingRef.current) return;
     if (!selectedTechnician) {
       toast.error("Please select a technician first.");
       return;
@@ -321,39 +325,41 @@ export default function FindTechnician() {
     }
 
     try {
-      console.log("Sending technician request:", requestData);
-
+      submittingRef.current = true;
       const response = await createRequest(requestData).unwrap();
-
-      console.log("Technician request created:", response);
-
+      if (response?.success === false || !response?.data?.request) {
+        throw new Error(response?.message || "The server did not confirm the request.");
+      }
       toast.success(
         response?.message || "Technician request sent successfully!"
       );
+      navigate("/my-requests");
     } catch (error) {
-      console.error("Create request failed:", {
-        status: error?.status,
-        data: error?.data,
-        message: error?.error,
-      });
-
+      const messages = {
+        401: "Your session expired. Please sign in again.",
+        403: "You are not allowed to create this request.",
+        404: "The request service or selected technician could not be found.",
+        409: "This request conflicts with the current service state. Refresh and try again.",
+      };
       toast.error(
-        error?.data?.message ||
+        error?.data?.message || error?.message ||
+          messages[error?.status] ||
           error?.error ||
           "Failed to send technician request."
       );
+    } finally {
+      submittingRef.current = false;
     }
   }, [
     selectedTechnician,
     location,
     description,
     createRequest,
+    navigate,
   ]);
 
   return (
     <div className="min-h-screen bg-[#F7F6F2] px-4 py-6 sm:px-6 lg:px-8">
-      <Toaster position="top-right" />
-
       <div className="mx-auto max-w-7xl">
         {/* Page heading */}
         <div className="mb-6">
