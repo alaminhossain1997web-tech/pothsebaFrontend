@@ -60,7 +60,10 @@ const Login = () => {
       // =========================
 
       const role = response.data.user.role;
-      dispatch(setUser(response.data.user));
+      dispatch(setUser({
+        ...response.data.user,
+        technicianProfile: response.data.technicianProfile || null,
+      }));
 
       const hasProfile =
         response.data.technicianProfile;

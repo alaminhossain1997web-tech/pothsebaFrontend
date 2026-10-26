@@ -1,10 +1,9 @@
 
-import { useEffect } from "react";
+import { useSelector } from "react-redux";
 
 import { useGetTechnicianRequestsQuery } from "../../services/Api";
 import TechnicianStatusCard from "../../components/ui/card/TechnicianStatusCard";
 import RequestPendingCard from "../../components/ui/card/RequestPendingCard";
-import { connectSharedSocket, getSharedSocket } from "../../services/socket";
 
 const getRequestList = (response) => {
   const candidates = [
@@ -20,6 +19,8 @@ const getRequestId = (request) =>
   String(request?._id || request?.requestId || request?.id || "");
 
 const TecnicianDashboard = () => {
+  const user = useSelector((state) => state.user.user);
+  const technicianLocation = user?.technicianProfile?.location?.coordinates;
   const {
     data,
     error,
@@ -27,10 +28,10 @@ const TecnicianDashboard = () => {
     isFetching,
     refetch,
   } = useGetTechnicianRequestsQuery(undefined, {
+    // Keep a slow recovery fallback until server event delivery is verified.
     pollingInterval: 30000,
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
-    refetchOnReconnect: true,
   });
 
   const serverRequests = getRequestList(data);
@@ -45,24 +46,6 @@ const TecnicianDashboard = () => {
     { title: "Active Requests", statuses: ["accepted", "on_the_way", "in_progress"] },
     { title: "Request History", statuses: ["rejected", "completed", "cancelled"] },
   ];
-
-  useEffect(() => {
-    const socket = getSharedSocket();
-
-    const refresh = () => refetch();
-
-    socket.on("request:new", refresh);
-    socket.on("request:updated", refresh);
-    socket.on("connect", refresh);
-
-    connectSharedSocket(socket);
-
-    return () => {
-      socket.off("request:new", refresh);
-      socket.off("request:updated", refresh);
-      socket.off("connect", refresh);
-    };
-  }, [refetch]);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -135,7 +118,7 @@ const TecnicianDashboard = () => {
                       <p className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-500">No {title.toLowerCase()}.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        {groupedRequests.map((request) => <RequestPendingCard key={getRequestId(request)} request={request} />)}
+                        {groupedRequests.map((request) => <RequestPendingCard key={getRequestId(request)} request={request} technicianLocation={technicianLocation} />)}
                       </div>
                     )}
                   </section>

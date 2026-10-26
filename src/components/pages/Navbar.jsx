@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FiUser } from "react-icons/fi";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { Link } from "react-router";
-import { useSelector } from "react-redux";
-import { useGetTechnicianRequestsQuery } from "../../services/Api";
+import { useDispatch, useSelector } from "react-redux";
+import { Api, useGetTechnicianRequestsQuery } from "../../services/Api";
 import RequestPendingCard from "../ui/card/RequestPendingCard";
 import { connectSharedSocket, getSharedSocket } from "../../services/socket";
 
@@ -13,16 +13,18 @@ const getRequests = (response) => {
 };
 
 const Navbar = () => {
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
+  const technicianLocation = user?.technicianProfile?.location?.coordinates;
   const isTechnician = user?.role === "Technician" && Boolean(localStorage.getItem("accessToken"));
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { data, error, isLoading, isFetching, refetch } = useGetTechnicianRequestsQuery(undefined, {
     skip: !isTechnician,
+    // Keep a slow recovery fallback until server event delivery is verified.
     pollingInterval: isTechnician ? 30000 : 0,
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
-    refetchOnReconnect: true,
   });
 
   const pendingRequests = useMemo(
@@ -33,18 +35,49 @@ const Navbar = () => {
   useEffect(() => {
     if (!isTechnician) return undefined;
     const socket = getSharedSocket();
-    // Refresh the authoritative list without depending on undocumented payload fields.
-    const refreshRequests = () => refetch();
-    socket.on("request:new", refreshRequests);
-    socket.on("request:updated", refreshRequests);
-    socket.on("connect", refreshRequests);
+    let debounceTimer;
+    let hasConnected = socket.connected;
+    const recentEvents = new Set();
+    const invalidateRequests = () => dispatch(Api.util.invalidateTags(["TechnicianRequests"]));
+    const refreshRequests = (eventName) => (payload) => {
+      // Ignore an exact duplicate event payload; the event schema is not needed
+      // because the query response remains the source of truth.
+      if (payload !== undefined) {
+        let signature;
+        try {
+          signature = `${eventName}:${JSON.stringify(payload)}`;
+        } catch {
+          signature = null;
+        }
+        if (signature && recentEvents.has(signature)) return;
+        if (signature) {
+          recentEvents.add(signature);
+          if (recentEvents.size > 100) recentEvents.delete(recentEvents.values().next().value);
+        }
+      }
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(invalidateRequests, 120);
+    };
+    const onReconnect = () => {
+      const isReconnect = hasConnected;
+      hasConnected = true;
+      if (!isReconnect) return;
+      clearTimeout(debounceTimer);
+      invalidateRequests();
+    };
+    const onNewRequest = refreshRequests("request:new");
+    const onRequestUpdated = refreshRequests("request:updated");
+    socket.on("request:new", onNewRequest);
+    socket.on("request:updated", onRequestUpdated);
+    socket.on("connect", onReconnect);
     connectSharedSocket(socket);
     return () => {
-      socket.off("request:new", refreshRequests);
-      socket.off("request:updated", refreshRequests);
-      socket.off("connect", refreshRequests);
+      clearTimeout(debounceTimer);
+      socket.off("request:new", onNewRequest);
+      socket.off("request:updated", onRequestUpdated);
+      socket.off("connect", onReconnect);
     };
-  }, [isTechnician, refetch]);
+  }, [dispatch, isTechnician]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -85,7 +118,7 @@ const Navbar = () => {
               </header>
 
               <div className="max-h-[min(65vh,32rem)] space-y-3 overflow-y-auto bg-gray-50/70 p-3">
-                {isLoading ? <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500" role="status">Loading pending requests...</div> : error && pendingRequests.length === 0 ? <div className="rounded-xl border border-red-100 bg-white p-4 text-sm text-red-700"><p>{error?.status === 401 ? "Your session expired. Please sign in again." : error?.status === 403 ? "You do not have access to technician requests." : error?.data?.message || error?.error || "Could not load pending requests."}</p><button type="button" onClick={() => refetch()} className="mt-2 font-semibold underline">Try again</button></div> : pendingRequests.length === 0 ? <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center"><p className="font-semibold text-[#1C2333]">You’re all caught up</p><p className="mt-1 text-sm text-gray-500">New pending requests will appear here.</p></div> : pendingRequests.map((request, index) => <RequestPendingCard key={request?._id || request?.id || request?.requestId || index} request={request} compact />)}
+                {isLoading ? <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500" role="status">Loading pending requests...</div> : error && pendingRequests.length === 0 ? <div className="rounded-xl border border-red-100 bg-white p-4 text-sm text-red-700"><p>{error?.status === 401 ? "Your session expired. Please sign in again." : error?.status === 403 ? "You do not have access to technician requests." : error?.data?.message || error?.error || "Could not load pending requests."}</p><button type="button" onClick={() => refetch()} className="mt-2 font-semibold underline">Try again</button></div> : pendingRequests.length === 0 ? <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center"><p className="font-semibold text-[#1C2333]">You’re all caught up</p><p className="mt-1 text-sm text-gray-500">New pending requests will appear here.</p></div> : pendingRequests.map((request, index) => <RequestPendingCard key={request?._id || request?.id || request?.requestId || index} request={request} technicianLocation={technicianLocation} compact />)}
               </div>
 
               <footer className="border-t border-gray-100 bg-white p-3">
