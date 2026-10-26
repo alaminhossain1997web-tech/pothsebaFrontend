@@ -211,7 +211,7 @@ const LocationPicker = ({ onLocationSelect }) => {
       >
         {loading
           ? "Getting Location..."
-          : "Allow Location Access"}
+          : "Allow location"}
       </button>
 
       {/* ==================================
