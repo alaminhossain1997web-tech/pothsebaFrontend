@@ -104,6 +104,7 @@ const Navbar = () => {
 
         <div className="flex items-center gap-2.5">
           {user && user.role !== "Technician" && <Link to="/my-requests" className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-[#1C2333] hover:border-[#ff7f11] hover:text-[#ff7f11]">My requests</Link>}
+          {user && localStorage.getItem("accessToken") && <Link to="/pump" className="hidden rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-[#1C2333] hover:border-[#ff7f11] hover:text-[#ff7f11] sm:inline-flex">Pump dashboard</Link>}
 
           {isTechnician && <div ref={dropdownRef} className="relative">
             <button type="button" onClick={() => setIsOpen((open) => !open)} aria-label={`Notifications${pendingRequests.length ? `, ${pendingRequests.length} pending requests` : ""}`} aria-expanded={isOpen} aria-controls="technician-request-notifications" className="relative flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-[#1C2333] transition hover:border-[#ff7f11] hover:bg-orange-50 hover:text-[#ff7f11] focus:outline-none focus:ring-2 focus:ring-orange-200">

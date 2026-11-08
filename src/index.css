@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "mapbox-gl/dist/mapbox-gl.css";
 @theme {
   --color-primary: #f27a00;
   --color-secondary: #1c2333;

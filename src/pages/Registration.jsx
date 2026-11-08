@@ -68,13 +68,13 @@ const Registration = () => {
         </div>
 
         <h2
-          className="text-2xl sm:text-3xl font-bold text-center mb-6"
+          className="text-2xl sm:text-2xl font-bold text-center mb-4"
           style={{ color: "#1C2333" }}
         >
           Create an Account
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-1 sm:space-y-2">
           {/* Full Name Field */}
           <div>
             <InputField
@@ -123,13 +123,17 @@ const Registration = () => {
               onChange={handleChange}
               options={[
                 {
+                  value: "User",
+                  label: "User",
+                },
+                {
                   value: "Technician",
                   label: "Technician",
                 },
                 {
                   value: "Rider",
                   label: "Rider",
-                },
+                }
               ]}
               placeholder="Choose your role"
               required

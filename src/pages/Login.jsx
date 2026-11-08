@@ -77,7 +77,9 @@ const Login = () => {
       // Role Based Navigation
       // =========================
 
-      if (role === "Technician") {
+      if (String(role).toLowerCase() === "admin") {
+        navigate("/admin");
+      } else if (role === "Technician") {
         if (hasProfile) {
           // Technician profile already exists
           navigate("/technician_dashboard");
@@ -86,6 +88,10 @@ const Login = () => {
           // Profile does not exist yet
           navigate("/technician-profile");
         }
+      } else if (role === "User") {
+        navigate("/user_dashboard");
+      } else if (role === "PumpOwner") {
+        navigate("/pump");
       } else {
         // Rider / Driver
         navigate("/home");
