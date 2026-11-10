@@ -291,6 +291,41 @@ export const Api = createApi({
       invalidatesTags: (result, error) =>
         !error && result?.success !== false ? ["AdminTechnicians"] : [],
     }),
+    getPendingTechnicians: build.query({
+      query: () => {
+        const url = "/api/v1/admin/pending_technician/all";
+        return {
+          url,
+          method: "GET",
+          responseHandler: async (response) => {
+          const body = await response.text();
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) return JSON.parse(body);
+          if (body.trimStart().startsWith("<")) {
+            throw new Error(`Pending technicians API returned HTML instead of JSON (HTTP ${response.status}). Check the deployed backend route and API URL.`);
+          }
+          try {
+            return JSON.parse(body);
+          } catch {
+            throw new Error(`Pending technicians API returned an invalid response (HTTP ${response.status}).`);
+          }
+          },
+        };
+      },
+      transformResponse: (response) => {
+        const lists = [
+          response?.data,
+          response?.technicians,
+          response?.pendingTechnicians,
+          response?.data?.technicians,
+          response?.data?.pendingTechnicians,
+          response?.items,
+          response?.results,
+        ];
+        return { ...response, data: lists.find(Array.isArray) || [] };
+      },
+      providesTags: ["AdminTechnicians"],
+    }),
     searchAdminUser: build.query({
       query: (email) => ({
         url: "/api/v1/admin/role/search",
@@ -453,6 +488,7 @@ export const {
   useApprovePendingTechnicianMutation,
   useRejectPendingTechnicianMutation,
   useUpdatePendingTechnicianMutation,
+  useGetPendingTechniciansQuery,
   useLazySearchAdminUserQuery,
   useUpdateAdminUserRoleMutation,
   useGetAdminRoleHistoryQuery,

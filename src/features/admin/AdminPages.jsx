@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
-import { FiArrowRight, FiCheck, FiDroplet, FiMapPin, FiPlus, FiSearch, FiUsers, FiX } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiDroplet, FiMapPin, FiPlus, FiSearch, FiUsers, FiX, FiEye, FiRefreshCw } from "react-icons/fi";
 import {
   useApproveAdminPumpMutation, useApprovePendingTechnicianMutation, useCreateAdminAreaMutation,
   useCreateAdminServiceMutation, useDeleteAdminAreaMutation, useGetAdminAreasQuery,
   useGetAdminAreaHierarchyQuery, useGetAdminPumpQuery, useGetAdminPumpsQuery,
-  useGetAdminRoleHistoryQuery, useGetAdminZoneWardsQuery,
+  useGetAdminRoleHistoryQuery, useGetAdminZoneWardsQuery, useGetPendingTechniciansQuery,
   useServicesQuery, useLazySearchAdminUserQuery, useRejectAdminPumpMutation,
   useRejectPendingTechnicianMutation, useUpdateAdminAreaMutation,
   useUpdateAdminAreaStatusMutation, useUpdateAdminUserRoleMutation,
 } from "../../services/Api";
 
 const listFrom = (value) => {
-  const options = [value?.data?.pumps, value?.data?.areas, value?.data?.services, value?.data?.users, value?.data?.items, value?.data?.results, value?.data?.hierarchy, value?.data?.zones, value?.data?.history, value?.history, value?.pumps, value?.areas, value?.services, value?.items, value?.results, value?.data];
+  const options = [value?.data?.technicians, value?.data?.pendingTechnicians, value?.technicians, value?.pendingTechnicians, value?.data?.pumps, value?.data?.areas, value?.data?.services, value?.data?.users, value?.data?.items, value?.data?.results, value?.data?.hierarchy, value?.data?.zones, value?.data?.history, value?.history, value?.pumps, value?.areas, value?.services, value?.items, value?.results, value?.data];
   return options.find(Array.isArray) || [];
 };
 const idOf = (item) => String(item?._id || item?.id || item?.userId || item?.pumpId || item?.areaId || item?.technicianId || "");
@@ -103,11 +103,89 @@ export const AdminPumpDetails = () => {
   return <div><PageHeader title={pump.name || "Pump Details"} description="Pump profile, location, fuel inventory, owner, and approval history." action={<Link to="/admin/pumps" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold">Back to pumps</Link>} />{statusOf(pump) === "pending" && <div className="mb-5 flex gap-2"><button onClick={() => setPending({ action: "approve" })} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">Approve pump</button><button onClick={() => setPending({ action: "reject", reason: "" })} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Reject pump</button></div>}<div className="grid gap-5 lg:grid-cols-2">{sections.map(([sectionTitle, values]) => <Card key={sectionTitle}><h2 className="mb-4 font-bold">{sectionTitle}</h2><dl className="grid grid-cols-2 gap-x-4 gap-y-4">{values.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-gray-500">{label}</dt><dd className="mt-1 break-words text-sm font-medium">{value === undefined || value === null || value === "" ? "—" : String(value)}</dd></div>)}</dl></Card>)}<Card className="lg:col-span-2"><h2 className="mb-4 font-bold">Fuel Information</h2>{pump.fuels?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="p-3">Fuel type</th><th className="p-3">Price</th><th className="p-3">Availability</th></tr></thead><tbody className="divide-y">{pump.fuels.map((fuel, index) => <tr key={fuel.type + "-" + index}><td className="p-3">{fuel.type}</td><td className="p-3">{fuel.price}</td><td className="p-3"><Status value={fuel.available ? "Available" : "Unavailable"} /></td></tr>)}</tbody></table></div> : <Empty>Fuel information is not available.</Empty>}<p className="mt-3 text-xs text-gray-500">Last fuel update: {pump.fuelsUpdatedAt ? new Date(pump.fuelsUpdatedAt).toLocaleString() : "—"}</p></Card></div>{pending && <Confirm title={titleCase(pending.action) + " pump?"} description={pending.action === "reject" ? "Provide the required reason for rejecting this pump." : "Confirm approval for this pump."} busy={approveState.isLoading || rejectState.isLoading} danger={pending.action === "reject"} confirmDisabled={pending.action === "reject" && !pending.reason.trim()} confirmLabel={titleCase(pending.action)} onCancel={() => setPending(null)} onConfirm={act}>{pending.action === "reject" && <label className="mt-4 block text-sm font-medium">Rejection reason<textarea required value={pending.reason} onChange={(event) => setPending((current) => ({ ...current, reason: event.target.value }))} rows={3} className="mt-1 w-full rounded-xl border px-3 py-2.5" /></label>}</Confirm>}</div>;
 };
 
-export const AdminTechnicians = ({ filter = "all" }) => {
-  const [search, setSearch] = useState(""); const [pending, setPending] = useState(null); const [approve, a] = useApprovePendingTechnicianMutation(); const [reject, r] = useRejectPendingTechnicianMutation();
-  const title = filter === "all" ? "All Technicians" : `${titleCase(filter)} Technicians`;
-  const submit = async () => { if (pending?.id) { try { const result = pending.action === "approve" ? await approve(pending.id).unwrap() : await reject(pending.id).unwrap(); if (result?.success === false) throw new Error(result.message); toast.success(result?.message || "Technician status updated."); setPending(null); } catch (e) { toast.error(messageOf(e)); } } };
-  return <div><PageHeader title={title} description="Manage technician account approvals and review registration details." /><Card><div className="mb-4 flex items-center gap-2 rounded-xl border px-3 py-2.5 sm:max-w-md"><FiSearch className="text-gray-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search technicians" className="w-full text-sm outline-none" /></div><Notice>Technician listing endpoint was not provided. Available actions are PATCH `/admin/pending_technician/:technicianId/approve`, `/reject`, and `/:technicianId`; a GET endpoint is required to load actual technician rows. No sample records are shown.</Notice><div className="mt-4 flex flex-wrap gap-2">{filter !== "approved" && <button onClick={() => setPending({ action: "approve" })} className="rounded-xl border px-4 py-2 text-sm font-semibold">Approve by ID…</button>}{filter !== "rejected" && <button onClick={() => setPending({ action: "reject" })} className="rounded-xl border px-4 py-2 text-sm font-semibold text-rose-700">Reject by ID…</button>}</div>{search && <p className="mt-3 text-xs text-gray-400">Search will apply once a technician list endpoint is available.</p>}</Card>{pending && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><h2 className="text-lg font-bold">{pending.action === "approve" ? "Approve technician" : "Reject technician"}</h2><form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}><label className="block text-sm font-medium">Technician ID<input value={pending.id || ""} onChange={(e) => setPending((x) => ({ ...x, id: e.target.value }))} className="mt-1 w-full rounded-xl border px-3 py-2.5" required /></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setPending(null)} className="rounded-xl border px-4 py-2">Cancel</button><button disabled={a.isLoading || r.isLoading} className="rounded-xl bg-[#ff7f11] px-4 py-2 font-semibold text-white">{a.isLoading || r.isLoading ? "Saving…" : "Continue"}</button></div></form></div></div>}</div>;
+const AdminTechniciansUnavailable = ({ filter }) => {
+  const labels = {
+    all: ["All Technicians", "Total Technicians"],
+    approved: ["Approved Technicians", "Total Approved"],
+    rejected: ["Rejected Technicians", "Total Rejected"],
+  };
+  const [title, statLabel] = labels[filter] || labels.all;
+  return <div>
+    <PageHeader title={title} description="Technician records for this view are not available from the current backend APIs." />
+    <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={statLabel} value="—" icon={FiUsers} detail="List API not available" /></div>
+    <Card><Empty>List not available yet. The backend does not provide a technician list endpoint for this view.</Empty></Card>
+  </div>;
+};
+
+export const AdminTechnicians = ({ filter = "all" }) => filter === "pending"
+  ? <AdminPendingTechnicians />
+  : <AdminTechniciansUnavailable filter={filter} />;
+
+const AdminPendingTechnicians = () => {
+  const { data, error, isLoading, isFetching, refetch } = useGetPendingTechniciansQuery();
+  const [approve, approveState] = useApprovePendingTechnicianMutation();
+  const [reject, rejectState] = useRejectPendingTechnicianMutation();
+  const [selected, setSelected] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
+  const [search, setSearch] = useState("");
+  const technicians = Array.isArray(data?.data) ? data.data : listFrom(data);
+  const visible = technicians.filter((tech) => {
+    const user = tech.userId && typeof tech.userId === "object" ? tech.userId : {};
+    const haystack = [user.name, user.email, tech.shopname, tech.shopName, tech.phone, tech.email]
+      .filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(search.trim().toLowerCase());
+  });
+  const busy = approveState.isLoading || rejectState.isLoading;
+  const startAction = (tech, action) => setConfirmation({ tech, action });
+  const submit = async () => {
+    if (!confirmation || busy) return;
+    const id = idOf(confirmation.tech);
+    try {
+      const response = confirmation.action === "approve"
+        ? await approve(id).unwrap()
+        : await reject(id).unwrap();
+      assertApiSuccess(response);
+      toast.success(response?.message || `Technician ${confirmation.action}d successfully.`);
+      setConfirmation(null);
+      setSelected(null);
+    } catch (requestError) {
+      toast.error(requestError?.status === 404 ? "Technician not found. Refresh the list and try again." : messageOf(requestError));
+    }
+  };
+  const displayName = (tech) => tech?.userId?.name || tech?.name || "Technician";
+  const shop = (tech) => tech?.shopname || tech?.shopName;
+  const email = (tech) => tech?.userId?.email || tech?.email;
+  const services = (tech) => Array.isArray(tech?.services) ? tech.services.map((service) => typeof service === "string" ? service : service?.name).filter(Boolean).join(", ") : "";
+  const location = (tech) => tech?.address || tech?.locationName || tech?.location?.address || tech?.location?.name || (tech?.location?.coordinates?.length ? tech.location.coordinates.join(", ") : "");
+  const appliedDate = (tech) => tech?.createdAt || tech?.appliedAt;
+  const fields = (tech) => [
+    ["Technician name", displayName(tech)], ["Email", email(tech)], ["Phone", tech.phone],
+    ["Shop name", shop(tech)], ["Services", services(tech)], ["Location", location(tech)],
+    ["Verification status", tech.verificationStatus], ["Online status", typeof tech.isOnline === "boolean" ? (tech.isOnline ? "Online" : "Offline") : undefined],
+    ["Availability", typeof tech.isAvailable === "boolean" ? (tech.isAvailable ? "Available" : "Unavailable") : undefined],
+    ["Applied date", appliedDate(tech) ? new Date(appliedDate(tech)).toLocaleString() : undefined],
+    ["Coordinates", tech.location?.coordinates?.length ? tech.location.coordinates.join(", ") : undefined],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+  const actionButtons = (tech) => <div className="flex flex-wrap items-center gap-2">
+    <button onClick={() => setSelected(tech)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-gray-50"><FiEye /> View</button>
+    <button onClick={() => startAction(tech, "approve")} disabled={busy} className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-50">Approve</button>
+    <button onClick={() => startAction(tech, "reject")} disabled={busy} className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
+  </div>;
+  const avatar = (tech) => {
+    const user = tech.userId && typeof tech.userId === "object" ? tech.userId : tech;
+    const image = user.profileImage || user.avatar || user.image;
+    return image ? <img src={image} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 font-bold text-[#c75d00]">{displayName(tech).slice(0, 1).toUpperCase()}</span>;
+  };
+  return <div>
+    <PageHeader title="Pending Technicians" description="Review and manage technician applications." action={<button onClick={refetch} disabled={isFetching} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50"><FiRefreshCw className={isFetching ? "animate-spin" : ""} /> Refresh</button>} />
+    <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Total Pending" value={isLoading ? "…" : error ? "—" : data?.total ?? technicians.length} icon={FiUsers} detail="Applications awaiting review" /></div>
+    <Card>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><label className="flex min-w-0 items-center gap-2 rounded-xl border border-gray-200 px-3 py-2.5 sm:w-80"><FiSearch className="shrink-0 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, shop, email or phone" className="w-full text-sm outline-none" /></label><span className="text-sm text-gray-500">{isLoading ? "Loading…" : `${visible.length} pending ${visible.length === 1 ? "technician" : "technicians"}`}</span></div>
+      {isLoading ? <LoadingRows /> : error ? <Notice tone="red">{messageOf(error)} <button onClick={refetch} className="ml-2 font-semibold underline">Retry</button></Notice> : visible.length === 0 ? <Empty>{technicians.length ? "No pending technicians match your search." : "There are no pending technician applications right now."}</Empty> : <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr>{["Technician", "Shop Name", "Email", "Phone", "Services", "Location", "Applied Date", "Status", "Actions"].map((label) => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">{visible.map((tech) => <tr key={idOf(tech)} className="hover:bg-gray-50/70"><td className="px-3 py-3"><div className="flex items-center gap-3">{avatar(tech)}<span className="font-semibold">{displayName(tech)}</span></div></td><td className="px-3 py-3">{shop(tech) || "—"}</td><td className="px-3 py-3">{email(tech) || "—"}</td><td className="px-3 py-3">{tech.phone || "—"}</td><td className="max-w-48 truncate px-3 py-3" title={services(tech)}>{services(tech) || "—"}</td><td className="max-w-40 truncate px-3 py-3" title={location(tech)}>{location(tech) || "—"}</td><td className="px-3 py-3">{appliedDate(tech) ? new Date(appliedDate(tech)).toLocaleDateString() : "—"}</td><td className="px-3 py-3"><Status value={tech.verificationStatus || "pending"} /></td><td className="px-3 py-3">{actionButtons(tech)}</td></tr>)}</tbody></table></div>}
+    </Card>
+    {selected && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}><section role="dialog" aria-modal="true" aria-labelledby="technician-detail-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4"><div className="flex items-center gap-3">{avatar(selected)}<div><h2 id="technician-detail-title" className="text-xl font-bold">{displayName(selected)}</h2><p className="text-sm text-gray-500">{shop(selected) || "Technician application"}</p></div></div><button onClick={() => setSelected(null)} aria-label="Close details" className="rounded-lg p-2 hover:bg-gray-100"><FiX /></button></div><dl className="mt-6 grid gap-4 border-t pt-5 sm:grid-cols-2">{fields(selected).map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs font-medium text-gray-500">{label}</dt><dd className="mt-1 break-words text-sm font-semibold">{value}</dd></div>)}</dl><div className="mt-6 flex flex-wrap justify-end gap-2 border-t pt-5">{actionButtons(selected)}</div></section></div>}
+    {confirmation && <Confirm title={`${titleCase(confirmation.action)} technician?`} description={`Are you sure you want to ${confirmation.action} ${displayName(confirmation.tech)}${shop(confirmation.tech) ? ` from ${shop(confirmation.tech)}` : ""}?`} busy={busy} danger={confirmation.action === "reject"} confirmLabel={titleCase(confirmation.action)} onCancel={() => setConfirmation(null)} onConfirm={submit} />}
+  </div>;
 };
 
 export const AdminTechnicianDetails = () => {
