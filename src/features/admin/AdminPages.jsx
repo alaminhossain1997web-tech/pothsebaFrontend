@@ -7,6 +7,7 @@ import {
   useCreateAdminServiceMutation, useDeleteAdminAreaMutation, useGetAdminAreasQuery,
   useGetAdminAreaHierarchyQuery, useGetAdminPumpQuery, useGetAdminPumpsQuery,
   useGetAdminRoleHistoryQuery, useGetAdminZoneWardsQuery, useGetPendingTechniciansQuery,
+  useGetApprovedTechniciansQuery, useGetRejectedTechniciansQuery,
   useServicesQuery, useLazySearchAdminUserQuery, useRejectAdminPumpMutation,
   useRejectPendingTechnicianMutation, useUpdateAdminAreaMutation,
   useUpdateAdminAreaStatusMutation, useUpdateAdminUserRoleMutation,
@@ -103,23 +104,37 @@ export const AdminPumpDetails = () => {
   return <div><PageHeader title={pump.name || "Pump Details"} description="Pump profile, location, fuel inventory, owner, and approval history." action={<Link to="/admin/pumps" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold">Back to pumps</Link>} />{statusOf(pump) === "pending" && <div className="mb-5 flex gap-2"><button onClick={() => setPending({ action: "approve" })} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">Approve pump</button><button onClick={() => setPending({ action: "reject", reason: "" })} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Reject pump</button></div>}<div className="grid gap-5 lg:grid-cols-2">{sections.map(([sectionTitle, values]) => <Card key={sectionTitle}><h2 className="mb-4 font-bold">{sectionTitle}</h2><dl className="grid grid-cols-2 gap-x-4 gap-y-4">{values.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-gray-500">{label}</dt><dd className="mt-1 break-words text-sm font-medium">{value === undefined || value === null || value === "" ? "—" : String(value)}</dd></div>)}</dl></Card>)}<Card className="lg:col-span-2"><h2 className="mb-4 font-bold">Fuel Information</h2>{pump.fuels?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="p-3">Fuel type</th><th className="p-3">Price</th><th className="p-3">Availability</th></tr></thead><tbody className="divide-y">{pump.fuels.map((fuel, index) => <tr key={fuel.type + "-" + index}><td className="p-3">{fuel.type}</td><td className="p-3">{fuel.price}</td><td className="p-3"><Status value={fuel.available ? "Available" : "Unavailable"} /></td></tr>)}</tbody></table></div> : <Empty>Fuel information is not available.</Empty>}<p className="mt-3 text-xs text-gray-500">Last fuel update: {pump.fuelsUpdatedAt ? new Date(pump.fuelsUpdatedAt).toLocaleString() : "—"}</p></Card></div>{pending && <Confirm title={titleCase(pending.action) + " pump?"} description={pending.action === "reject" ? "Provide the required reason for rejecting this pump." : "Confirm approval for this pump."} busy={approveState.isLoading || rejectState.isLoading} danger={pending.action === "reject"} confirmDisabled={pending.action === "reject" && !pending.reason.trim()} confirmLabel={titleCase(pending.action)} onCancel={() => setPending(null)} onConfirm={act}>{pending.action === "reject" && <label className="mt-4 block text-sm font-medium">Rejection reason<textarea required value={pending.reason} onChange={(event) => setPending((current) => ({ ...current, reason: event.target.value }))} rows={3} className="mt-1 w-full rounded-xl border px-3 py-2.5" /></label>}</Confirm>}</div>;
 };
 
-const AdminTechniciansUnavailable = ({ filter }) => {
-  const labels = {
-    all: ["All Technicians", "Total Technicians"],
-    approved: ["Approved Technicians", "Total Approved"],
-    rejected: ["Rejected Technicians", "Total Rejected"],
-  };
-  const [title, statLabel] = labels[filter] || labels.all;
-  return <div>
-    <PageHeader title={title} description="Technician records for this view are not available from the current backend APIs." />
-    <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={statLabel} value="—" icon={FiUsers} detail="List API not available" /></div>
-    <Card><Empty>List not available yet. The backend does not provide a technician list endpoint for this view.</Empty></Card>
-  </div>;
-};
-
 export const AdminTechnicians = ({ filter = "all" }) => filter === "pending"
   ? <AdminPendingTechnicians />
-  : <AdminTechniciansUnavailable filter={filter} />;
+  : filter === "rejected" ? <AdminRejectedTechnicians /> : <AdminApprovedTechnicians />;
+
+const AdminApprovedTechnicians = () => {
+  const query = useGetApprovedTechniciansQuery();
+  return <TechnicianStatusList query={query} title="All Technicians" statLabel="Total Approved" status="approved" />;
+};
+
+const AdminRejectedTechnicians = () => {
+  const query = useGetRejectedTechniciansQuery();
+  return <TechnicianStatusList query={query} title="Rejected Technicians" statLabel="Total Rejected" status="rejected" />;
+};
+
+const TechnicianStatusList = ({ query, title, statLabel, status }) => {
+  const { data, error, isLoading, isFetching, refetch } = query;
+  const technicians = listFrom(data);
+  const total = data?.total ?? data?.count ?? technicians.length;
+  return <div>
+    <PageHeader title={title} description={`${title} directory and technician profile information.`} action={<button onClick={refetch} disabled={isFetching} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50"><FiRefreshCw className={isFetching ? "animate-spin" : ""} /> Refresh</button>} />
+    <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={statLabel} value={isLoading ? "…" : error ? "—" : total} icon={FiUsers} detail={`${title} returned by the backend`} /></div>
+    <Card>
+      {isLoading ? <LoadingRows /> : error ? <Notice tone="red">{messageOf(error)} <button onClick={refetch} className="ml-2 font-semibold underline">Retry</button></Notice> : technicians.length === 0 ? <Empty>No {status} technicians were returned.</Empty> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr>{["Technician", "Shop Name", "Email", "Phone", "Services", "Status"].map((label) => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">{technicians.map((tech) => {
+        const user = tech.userId && typeof tech.userId === "object" ? tech.userId : {};
+        const name = user.name || tech.name || "Technician";
+        const services = Array.isArray(tech.services) ? tech.services.map((service) => typeof service === "string" ? service : service?.name).filter(Boolean).join(", ") : "";
+        return <tr key={idOf(tech)} className="hover:bg-gray-50/70"><td className="px-3 py-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 font-bold text-[#c75d00]">{name.slice(0, 1).toUpperCase()}</span><span className="font-semibold">{name}</span></div></td><td className="px-3 py-3">{tech.shopname || tech.shopName || "—"}</td><td className="px-3 py-3">{user.email || tech.email || "—"}</td><td className="px-3 py-3">{tech.phone || "—"}</td><td className="px-3 py-3">{services || "—"}</td><td className="px-3 py-3"><Status value={tech.verificationStatus || status} /></td></tr>;
+      })}</tbody></table></div>}
+    </Card>
+  </div>;
+};
 
 const AdminPendingTechnicians = () => {
   const { data, error, isLoading, isFetching, refetch } = useGetPendingTechniciansQuery();

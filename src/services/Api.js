@@ -326,6 +326,20 @@ export const Api = createApi({
       },
       providesTags: ["AdminTechnicians"],
     }),
+    getApprovedTechnicians: build.query({
+      query: () => ({
+        url: "/api/v1/admin/list/approvedtechnicians",
+        method: "GET",
+      }),
+      providesTags: ["AdminTechnicians"],
+    }),
+    getRejectedTechnicians: build.query({
+      query: () => ({
+        url: "/api/v1/admin/list/rejecttechnicians",
+        method: "GET",
+      }),
+      providesTags: ["AdminTechnicians"],
+    }),
     searchAdminUser: build.query({
       query: (email) => ({
         url: "/api/v1/admin/role/search",
@@ -489,6 +503,8 @@ export const {
   useRejectPendingTechnicianMutation,
   useUpdatePendingTechnicianMutation,
   useGetPendingTechniciansQuery,
+  useGetApprovedTechniciansQuery,
+  useGetRejectedTechniciansQuery,
   useLazySearchAdminUserQuery,
   useUpdateAdminUserRoleMutation,
   useGetAdminRoleHistoryQuery,
